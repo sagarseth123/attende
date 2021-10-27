@@ -16,6 +16,7 @@ const { google } = require("googleapis");
 //const sheets = google.sheets('v4')
 const fs = require('fs');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
+const date = require('./date');
 
 
 
@@ -72,6 +73,8 @@ var userSchema = new mongoose.Schema({
 var meetingSchema = new mongoose.Schema({
     username: String,
     sheet: String,
+    date: String,
+    min_time: Number,
     sheetID: String,
     meeting_id: Number,
     host_id: String,
@@ -152,17 +155,25 @@ async function create_sheet(name) {
 
 
 app.post('/signup', function(req, res) {
-    User.register({ username: req.body.username, active: false }, req.body.password, function(err, user) {
-
-        if (err) {
-            console.log(err);
-            res.redirect("/signup");
+    User.findOne({ username: req.body.username }, function(err, found) {
+        if (found) {
+            var err = "User Already Exist Please Login";
+            res.render('error', { error: err });
         } else {
-            passport.authenticate("local")(req, res, function() {
-                res.redirect("/home");
+            User.register({ username: req.body.username, active: false }, req.body.password, function(err, user) {
+
+                if (err) {
+                    console.log(err);
+                    res.redirect("/signup");
+                } else {
+                    passport.authenticate("local")(req, res, function() {
+                        res.redirect("/home");
+                    });
+                }
             });
         }
-    });
+    })
+
 });
 
 app.post('/login', function(req, res) {
@@ -202,8 +213,17 @@ app.get('/signup', function(req, res) {
 app.get('/home', function(req, res) {
     //console.log(req.user);
     Meeting.find({ username: req.user.username }, function(err, found) {
-        //console.log(found);
-        res.render('home', { data: found });
+        var upc = [];
+        var prev = [];
+        var currdate = date();
+        found.forEach(ele => {
+            if (ele.date <= currdate) {
+                upc.push(ele);
+            } else {
+                prev.push(ele);
+            }
+        })
+        res.render('home', { upcoming: upc, previous: prev });
     });
 });
 
@@ -216,7 +236,7 @@ app.get('/create', function(req, res) {
 
 
 app.post('/sheet/:id', async function(req, res) {
-    console.log("reacher here");
+    console.log("reacher here because you click");
     var sheetID = req.params.id;
     console.log(req.params.id);
     const doc = new GoogleSpreadsheet(sheetID);
@@ -226,7 +246,7 @@ app.post('/sheet/:id', async function(req, res) {
             try {
                 await doc.loadInfo();
                 const sheet0 = doc.sheetsByIndex[0];
-                const sheet = await doc.addSheet({ headerValues: ['user_id', 'user_name', 'in', 'out', 'time_spent'] });
+                const sheet = await doc.addSheet({ headerValues: ['user_id', 'user_name', 'in', 'out', 'time_spent', 'flag'] });
                 await sheet0.delete();
 
                 found.flag = 1;
@@ -257,6 +277,8 @@ app.post('/class_details', async function(req, res) {
     var meet = new Meeting({
         username: req.user.username,
         sheet: link,
+        date: req.body.date,
+        min_time: req.body.min_time,
         sheetID: id,
         meeting_id: req.body.meeting_ID,
         //host_id: String,
@@ -264,11 +286,22 @@ app.post('/class_details', async function(req, res) {
         flag: 0
     });
     meet.save();
+    console.log(req.body.date);
+    console.log(date());
 
     res.redirect('/home');
 });
 
 
+app.get('/delete/:id', function(req, res) {
+    Meeting.deleteOne({ _id: req.params.id }, function(err) {
+        if (err) {
+            res.render('error', { error: "Error while deleting" });
+        } else {
+            res.redirect('/home');
+        }
+    })
+})
 
 
 app.post('/student_join', function(req, res) {
@@ -301,10 +334,13 @@ app.post('/student_join', function(req, res) {
                 if (!row_found) {
                     await sheet.addRow({ user_id: participant.id, user_name: participant.user_name, in: participant.join_time, out: participant.join_time, time_spent: 0 });
                 } else {
-                    console.log("user already exists");
-                    var time = row_found.time_spent;
-                    await row_found.delete();
-                    await sheet.addRow({ user_id: participant.id, user_name: participant.user_name, in: participant.join_time, out: participant.join_time, time_spent: time });
+
+                    if (row_found.out < participant.join_time) {
+                        console.log("user already exists");
+                        var time = row_found.time_spent;
+                        await row_found.delete();
+                        await sheet.addRow({ user_id: participant.id, user_name: participant.user_name, in: participant.join_time, out: participant.join_time, time_spent: time });
+                    }
                 }
             } catch (err) {
                 console.log(`The error: ${err}`);
@@ -357,7 +393,7 @@ app.post('/student_left', function(req, res) {
 
 
                 if (row_found) {
-                    if (row_found.out != participant.leave_time) {
+                    if (row_found.out < participant.leave_time) {
                         console.log("user left");
                         row_found.out = participant.leave_time;
                         await row_found.save();
@@ -366,6 +402,10 @@ app.post('/student_left', function(req, res) {
                         var new_time = parseInt(row_found.time_spent) + time_spent;
                         row_found.time_spent = new_time;
                         await row_found.save();
+                        if (row_found.time_spent >= found.min_time) {
+                            row_found.flag = 'P';
+                            await row_found.save();
+                        }
                     }
                 }
             } catch (err) {

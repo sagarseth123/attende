@@ -6,7 +6,8 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
@@ -19,24 +20,91 @@
         <a href="/create" style="float: right;"><button class="btn btn-dark">New Class</button></a>
     </div>
 
-
     <div class="container">
-        <% data.forEach(element => { %>
-            <div style="display: flex; ">
-                <div style="float: left;padding: 10px;">
-                    <%= element.meeting_name %>
-                </div>
-                <div style="float: right;padding: 10px;">
-                    <a onclick="sheet('<%= element.sheetID %>');" href="<%= element.sheet %>">attendance</a>
-                </div>
-            </div>
 
-            <%  }); %>
+        <h2 style="font-weight: 100;">Upcoming Meetings</h2><br>
+
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Class Name</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Attendance</th>
+                    <th scope="col">Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% var count=1; %>
+                    <% upcoming.forEach(element => { %>
+                        <tr>
+                            <th scope="row">
+                                <%= count %>
+                            </th>
+                            <td>
+                                <%= element.meeting_name %>
+                            </td>
+                            <td>
+                                <%= element.date %>
+                            </td>
+                            <td>
+                                <a style="color: inherit;" onclick="sheet('<%= element.sheetID %>');" href="<%= element.sheet %>">attendance</a>
+                            </td>
+                            <td>
+                                <a style="color: inherit;" href="/delete/<%= element._id %>"><i style="padding-left: 10%;" class="fas fa-trash-alt"></i></a>
+                            </td>
+                        </tr>
+                        <% count++; %>
+                            <%  }) %>
+            </tbody>
+        </table>
+
+        <hr><br><br><br><br>
+
+        <h2 style="font-weight: 100;">Previous Meetings</h2><br>
+
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Class Name</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Attendance</th>
+                    <th scope="col">Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% var count=1; %>
+                    <% previous.forEach(element => { %>
+                        <tr>
+                            <th scope="row">
+                                <%= count %>
+                            </th>
+                            <td>
+                                <%= element.meeting_name %>
+                            </td>
+                            <td>
+                                <%= element.date %>
+                            </td>
+                            <td>
+                                <a style="color: inherit;" onclick="sheet('<%= element.sheetID %>');" href="<%= element.sheet %>">attendance</a>
+                            </td>
+                            <td>
+                                <a style="color: inherit;" href="/delete/<%= element._id %>"> <i style="padding-left: 10%;" class="fas fa-trash-alt"></i></a>
+                            </td>
+                        </tr>
+                        <% count++; %>
+                            <%  }) %>
+            </tbody>
+        </table>
+        <hr><br><br><br><br>
     </div>
+
+
 
     <script>
         function sheet(sheetID) {
-            alert(sheetID);
+            //alert(sheetID);
             $.post('/sheet/' + sheetID, sheetID, function(sheetID, status) {
                 console.log("${sheetID} and status is ${status}");
             });
